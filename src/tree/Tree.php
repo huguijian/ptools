@@ -6,6 +6,7 @@ namespace Ptools\Tree;
  */
 class Tree {
 
+
     /**
      * 生成树型结构所需要的2维数组
      * @var array

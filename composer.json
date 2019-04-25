@@ -1,0 +1,19 @@
+{
+    "name": "hgj/ptools",
+    "description": "php class",
+    "authors": [
+        {
+            "name": "huguijian",
+            "license": "MIT"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "Ptools\\": "src/"
+        }
+    },
+    "require": {
+        "php": "^7.1.3",
+        "elasticsearch/elasticsearch": "~6.0"
+    }
+}
