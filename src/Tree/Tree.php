@@ -411,7 +411,7 @@ class Tree {
         return(strpos(',,' . $list . ',', ',' . $item . ','));
     }
 
-    public function get_tree_array($myid, $str, $sid = 0, $adds = '', $str_group = '',$first=0,$class='tree treeFolder') {
+    public function get_tree_array($myid, $str, $sid = 0, $adds = '', $str_group = '',$first=0,$class='Tree treeFolder') {
         $number = 1;
         $child = $this->get_child($myid);
         //dump($child);exit;
