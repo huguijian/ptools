@@ -405,9 +405,14 @@ class DB {
                         break;
 
                     default :
-                        $bindField = $bindField."_default";
-                        $where .= "$field $val[0] $bindField AND ";
-                        $bindVals[$bindField] = $val[1];
+                        if (false!==strpos($val[1],"field.")) {
+                            $bindField =  substr($val[1],strlen("field."));
+                            $where .= "$field $val[0] $bindField AND ";
+                        }else{
+                            $bindField = $bindField."_default";
+                            $where .= "$field $val[0] $bindField AND ";
+                            $bindVals[$bindField] = $val[1];
+                        }
                         break;
                 }
 
