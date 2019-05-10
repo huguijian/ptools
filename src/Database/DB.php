@@ -230,13 +230,13 @@ class DB {
     {
         $table = $this->realTable;
 
+        $limit = $this->limit;
         $selectFields = !empty($fields) ? implode(',', $fields) : "*";
 
         $sql = "SELECT $selectFields FROM $table {$this->where}  {$this->order} {$this->limit}";
-
         $stmt = $this->execute($sql,true);
+        if (substr($limit,-3)==='one') {
 
-        if (substr($this->limit,-3)==='one') {
             $result = $stmt->fetch($this->fetchType);
         } else {
             $result = $stmt->fetchAll($this->fetchType);
