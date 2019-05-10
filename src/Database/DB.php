@@ -122,6 +122,17 @@ class DB {
      */
     public static function getInstance($dbConfig = array())
     {
+        if (empty($dbConfig)) {
+            $dbConfig = [
+                'host'   => env('DB_HOST','127.0.0.1'),
+                'dbType' => 'mysql',
+                'dbName' => env('DB_DATABASE'),
+                'user'   => env('DB_USERNAME'),
+                'pw'     => env('DB_PASSWORD'),
+                'port'   => 3306,
+            ];
+        }
+
         $link = md5(implode(",",$dbConfig));
         if (!isset(self::$_instance[$link]) || self::$_instance[$link]==null) {
 
@@ -140,7 +151,7 @@ class DB {
         $pdo = null;
         $dsn = $this->dbConfig["dbType"].":"."host=".$this->dbConfig["host"].";"."dbname=".$this->dbConfig["dbName"].";"."port=".$this->dbConfig["port"];
         try {
-            $pdo = new \PDO($dsn,$this->dbConfig["user"],$this->dbConfig["pw"],array(\PDO::MYSQL_ATTR_INIT_COMMAND => "set names utf8,sql_mode=''"));
+            $pdo = new \PDO($dsn,$this->dbConfig["user"],$this->dbConfig["pw"],array(\PDO::MYSQL_ATTR_INIT_COMMAND => "set names utf8,sql_mode=''",\PDO::ATTR_PERSISTENT => true));
         } catch (\PDOException $e) {
 
             throw new \PDOException("数据库连接错误:".$e->getMessage());
@@ -607,7 +618,7 @@ class DB {
      */
     public function beginTransaction()
     {
-        $this->pdo->setAttribute(PDO::ATTR_AUTOCOMMIT,0);
+        $this->pdo->setAttribute(\PDO::ATTR_AUTOCOMMIT,0);
         $this->pdo->beginTransaction();
         $this->transaction = true;
         register_shutdown_function([$this,"checkTransactionStatus"]);
@@ -621,7 +632,7 @@ class DB {
     public function commit()
     {
         $result = $this->pdo->commit();
-        $this->pdo->setAttribute(PDO::ATTR_AUTOCOMMIT,1);
+        $this->pdo->setAttribute(\PDO::ATTR_AUTOCOMMIT,1);
         $this->transaction = false;
         return $result;
     }
