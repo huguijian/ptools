@@ -52,7 +52,7 @@ class DB {
      *
      * @var array
      */
-    protected $tableConfig = array();
+    public $tableConfig = array();
 
     /**
      * 真实表
@@ -111,6 +111,7 @@ class DB {
         if (!empty($dbConfig)) {
 
             $this->dbConfig = $dbConfig;
+
         }
         self::connect();
     }
@@ -122,6 +123,7 @@ class DB {
      */
     public static function getInstance($dbConfig = array())
     {
+
         if (empty($dbConfig)) {
             $dbConfig = [
                 'host'   => env('DB_HOST','127.0.0.1'),
@@ -136,7 +138,7 @@ class DB {
         $link = md5(implode(",",$dbConfig));
         if (!isset(self::$_instance[$link]) || self::$_instance[$link]==null) {
 
-            self::$_instance[$link] = new static($dbConfig);
+            self::$_instance[$link] = new self($dbConfig);
         }
 
         return self::$_instance[$link];
@@ -263,7 +265,6 @@ class DB {
      */
     public function find($fields=array())
     {
-
         return $this->limit(1)->select($fields);
     }
 
@@ -312,6 +313,7 @@ class DB {
             $limit = " LIMIT ".implode(",",$bindLimit);
         }
         $this->limit = $limit;
+
         return $this;
     }
 
@@ -445,7 +447,7 @@ class DB {
         if (isset($this->bindVals["where"])) {
             foreach ($this->bindVals["where"] as $key=>$val) {
 
-                    $this->stmt->bindValue($key, $val, self::getBindValType($val));
+                $this->stmt->bindValue($key, $val, self::getBindValType($val));
 
             }
             unset($this->bindVals["where"]);
@@ -453,11 +455,12 @@ class DB {
         }
 
 
+
         //limit bind val
         if (isset($this->bindVals["limit"])) {
-
             foreach ($this->bindVals["limit"] as $key=>$val) {
-                $this->stmt->bindValue($key,$val,self::getBindValType($val));
+                $val = intval($val);
+                $this->stmt->bindValue($key,$val, self::getBindValType($val));
             }
             unset($this->bindVals["limit"]);
             $this->limit = "";
@@ -656,6 +659,22 @@ class DB {
     }
 
 
+
+
+    /*
+     * 字段求和
+     * @param $field
+     * @return mixed
+     */
+    public function sum($field)
+    {
+        $table = $this->realTable;
+        $sql = "SELECT SUM($field) as val FROM $table {$this->where}";
+        $stmt = $this->execute($sql,true);
+        $result = $stmt->fetch($this->fetchType);
+        return $result["val"];
+    }
+
     /**
      * 原生sql查询
      * @param $sql
@@ -694,7 +713,6 @@ class DB {
                 $this->lastErrorCode = $this->pdo->errorCode();
                 $this->lastError     = $this->pdo->errorInfo();
             }
-
             if (!empty($this->bindVals)) {
                 $this->parseBindVal();
             }
@@ -708,18 +726,12 @@ class DB {
 
         return $flag === true ? $this->stmt : $this->stmt->rowCount();
     }
-    /*
-     * 字段求和
-     * @param $field
-     * @return mixed
-     */
-    public function sum($field)
+
+    public function __destruct()
     {
-        $table = $this->realTable;
-        $sql = "SELECT SUM($field) as val FROM $table {$this->where}";
-        $stmt = $this->execute($sql,true);
-        $result = $stmt->fetch($this->fetchType);
-        return $result["val"];
+        $this->stmt->closeCursor(); // this is not even required
+        $this->stmt = null; // doing this is mandatory for connection to get closed
+        $this->pdo = null;
     }
 
 }

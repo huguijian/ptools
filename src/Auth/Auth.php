@@ -6,10 +6,10 @@ class Auth{
     protected $_config = array(
         'AUTH_ON' => true, //认证开关
         'AUTH_TYPE' => 1, // 认证方式，1为时时认证；2为登录认证。
-        'AUTH_GROUP' => 'yx_auth_group', //用户组数据表名
-        'AUTH_GROUP_ACCESS' => 'yx_user_group', //用户组明细表
-        'AUTH_RULE' => 'yx_node', //权限规则表
-        'AUTH_USER' => 'yx_user'//用户信息表
+        'AUTH_GROUP' => 't_user_group_auth', //用户组所有权限表
+        'AUTH_GROUP_ACCESS' => 't_user_group', //用户对应组表
+        'AUTH_RULE' => 't_node', //节点表
+        'AUTH_USER' => 't_user'//用户信息表
     );
 
     public function __construct() {
@@ -51,7 +51,7 @@ class Auth{
         if (isset($groups[$uid]))
             return $groups[$uid];
 
-        $sql = "SELECT * FROM {$this->_config['AUTH_GROUP_ACCESS']} a INNER JOIN {$this->_config['AUTH_GROUP']} g on a.group_id=g.id WHERE a.uid='$uid' and g.status='1'";
+        $sql = "SELECT * FROM {$this->_config['AUTH_GROUP_ACCESS']} a INNER JOIN {$this->_config['AUTH_GROUP']} g on a.group_id=g.group_id WHERE a.user_id='$uid' and g.status='1'";
 
         $user_groups = app('db')->select($sql);
         $user_groups = array_map('get_object_vars', $user_groups);
@@ -80,7 +80,7 @@ class Auth{
 
         $ids_str = implode(",",$ids);
         //读取用户组所有权限规则
-        $sql = "SELECT * FROM {$this->_config['AUTH_RULE']} WHERE id IN($ids_str) AND status=1";
+        $sql = "SELECT * FROM {$this->_config['AUTH_RULE']} WHERE node_id IN($ids_str) AND status=1";
         $rules = app('db')->select($sql);
         $rules = array_map('get_object_vars', $rules);
 
@@ -109,7 +109,7 @@ class Auth{
     protected function getUserInfo($uid) {
         static $userinfo=array();
         if(!isset($userinfo[$uid])){
-            $uinfo=app('db')->select("SELECT * FROM {$this->_config['AUTH_USER']} WHERE id=$uid");
+            $uinfo=app('db')->select("SELECT * FROM {$this->_config['AUTH_USER']} WHERE user_id=$uid");
             $uinfo = array_map('get_object_vars', $uinfo);
             $uinfo = $uinfo[0];
             $userinfo[$uid] = $uinfo;
