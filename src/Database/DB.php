@@ -195,12 +195,36 @@ class DB {
         }
 
         $this->bindVals["insert_field"] = $insertFields;
-        $_addFields  = implode(',', $_addFields);
+        $_addFields  = self::buildField($_addFields);
         $_bindValues = implode(",", array_keys($insertFields));
         $sql = "INSERT INTO ". $table . " ($_addFields) VALUES ($_bindValues)";
         if (false!== $count = $this->execute($sql,true)->rowCount()) {
             return !empty($this->pdo->lastInsertId()) ? $this->pdo->lastInsertId() : $count;
         }
+    }
+
+    private static function buildField($fields)
+    {
+        $fieldStr = "";
+
+
+        if (is_array($fields)) {
+            foreach($fields as $item){
+                $fieldStr .= "`".$item."`,";
+            }
+            $fieldStr = rtrim($fieldStr,",");
+        }else if(is_string($fields) && false!==strpos($fields,",")){
+            $fields = explode(",",$fields);
+            foreach($fields as $item){
+                $fieldStr .= "`".$item."`,";
+            }
+            $fieldStr = rtrim($fieldStr,",");
+
+        }else{
+            $fieldStr = "`".$fields."`";
+        }
+        return $fieldStr;
+
     }
 
 
@@ -214,6 +238,7 @@ class DB {
         $table = $this->realTable;
         $setData = "";
         foreach ($data as $key=>$val) {
+            $key = self::buildField($key);
             $setData .= " $key='$val',";
         }
         $setData = substr($setData, 0, -1);
@@ -244,7 +269,7 @@ class DB {
         $table = $this->realTable;
 
         $limit = $this->limit;
-        $selectFields = !empty($fields) ? implode(',', $fields) : "*";
+        $selectFields = !empty($fields) ? self::buildField($fields) : "*";
 
         $sql = "SELECT $selectFields FROM $table {$this->where}  {$this->order} {$this->limit}";
         $stmt = $this->execute($sql,true);
@@ -276,6 +301,7 @@ class DB {
     public function count($field="*")
     {
         $table = $this->realTable;
+        $field = $field=="*" ? $field : self::buildField($field);
         $sql = "SELECT COUNT($field) as count FROM $table {$this->where}";
         $stmt = $this->execute($sql,true);
         $result = $stmt->fetch($this->fetchType);
@@ -322,9 +348,10 @@ class DB {
      * @param string $order
      * @return $this
      */
-    public function order($order = "")
+    public function order($field = "",$order="ASC")
     {
-        $order = " ORDER BY $order";
+        $field = self::buildField($field);
+        $order = " ORDER BY $field $order";
         $this->order = $order;
         return $this;
     }
@@ -338,6 +365,7 @@ class DB {
     public function setInc($field, $val=0)
     {
         $table = $this->realTable;
+        $field = self::buildField($field);
         $sql   = "UPDATE $table SET $field=$field+$val {$this->where}";
         return $this->execute($sql,true)->rowCount();
 
@@ -353,6 +381,7 @@ class DB {
     {
 
         $table = $this->realTable;
+        $field = self::buildField($field);
         $sql   = "UPDATE $table SET $field=$field-$val {$this->where}";
         return $this->execute($sql,true)->rowCount();
     }
@@ -459,7 +488,6 @@ class DB {
         //limit bind val
         if (isset($this->bindVals["limit"])) {
             foreach ($this->bindVals["limit"] as $key=>$val) {
-                $val = intval($val);
                 $this->stmt->bindValue($key,$val, self::getBindValType($val));
             }
             unset($this->bindVals["limit"]);
@@ -480,6 +508,33 @@ class DB {
         $this->order     = "";
         return $this->stmt;
     }
+    /**
+     * 根据参数绑定组装最终的SQL语句 便于调试
+     * @access register
+     * @param string    $sql 带参数绑定的sql语句
+     * @param array     $bind 参数绑定列表
+     * @return string
+     */
+    public function getRealSql($sql, array $bind = [])
+    {
+        foreach($bind as $item) {
+            if(is_array($item)) {
+                foreach($item as $bindField=>$val){
+                    if (\PDO::PARAM_STR == self::getBindValType($val)) {
+                        $value = $this->pdo->quote($val);
+                    } elseif (\PDO::PARAM_INT == self::getBindValType($val)) {
+                        $value = (float) $val;
+                    }
+                    // 判断占位符
+                    $sql = str_replace(
+                        [$bindField],
+                        [$value],
+                        $sql);
+                }
+            }
+        }
+        return rtrim($sql);
+    }
 
     /**
      * 获取bind val Type
@@ -489,10 +544,10 @@ class DB {
     private static function getBindValType($val)
     {
         $valType = null;
-        if (is_int($val)) {
+        if (is_numeric($val)) {
             $valType = \PDO::PARAM_INT;
 
-        } else if(is_string($val) || is_float($val)) {
+        } else if(is_string($val)) {
             $valType = \PDO::PARAM_STR;
 
         } else if(is_bool($val)) {
@@ -502,6 +557,7 @@ class DB {
             $valType = \PDO::PARAM_NULL;
 
         }
+
         return $valType;
     }
 
@@ -669,6 +725,7 @@ class DB {
     public function sum($field)
     {
         $table = $this->realTable;
+        $field = self::buildField($field);
         $sql = "SELECT SUM($field) as val FROM $table {$this->where}";
         $stmt = $this->execute($sql,true);
         $result = $stmt->fetch($this->fetchType);
@@ -684,16 +741,15 @@ class DB {
     {
         try{
             $this->stmt = $stmt = $this->pdo->prepare($sql);
-
+            $this->lastSql = $this->getRealSql($sql,$this->bindVals);
             if (!$stmt instanceof \PDOStatement) {
                 $this->lastErrorCode = $this->pdo->errorCode();
                 $this->lastError     = $this->pdo->errorInfo();
             }
-            $this->lastSql = $sql;
             $this->stmt->execute();
         }catch (\PDOException $e) {
 
-            throw new \PDOException("SQL语句:".$sql."错误信息:".$e->getMessage());
+            throw new \PDOException("SQL语句:".$this->lastSql."错误信息:".$e->getMessage());
         }
 
         return $this->stmt->fetchAll($this->fetchType);
@@ -707,8 +763,8 @@ class DB {
     public function execute($sql,$flag = false)
     {
         try{
-
             $this->stmt = $stmt = $this->pdo->prepare($sql);
+            $this->lastSql = $this->getRealSql($sql,$this->bindVals);
             if (!$stmt instanceof \PDOStatement) {
                 $this->lastErrorCode = $this->pdo->errorCode();
                 $this->lastError     = $this->pdo->errorInfo();
@@ -718,10 +774,10 @@ class DB {
             }
 
             //$this->stmt->debugDumpParams();
-            $this->lastSql = $sql;
+
             $this->stmt->execute();
         }catch (\PDOException $e) {
-            throw new \PDOException("SQL语句:".$sql."错误信息:".$e->getMessage());
+            throw new \PDOException("SQL语句:".$this->lastSql."错误信息:".$e->getMessage());
         }
 
         return $flag === true ? $this->stmt : $this->stmt->rowCount();
