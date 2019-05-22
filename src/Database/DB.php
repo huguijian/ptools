@@ -153,9 +153,10 @@ class DB {
         $pdo = null;
         $dsn = $this->dbConfig["dbType"].":"."host=".$this->dbConfig["host"].";"."dbname=".$this->dbConfig["dbName"].";"."port=".$this->dbConfig["port"];
         try {
-            $pdo = new \PDO($dsn,$this->dbConfig["user"],$this->dbConfig["pw"],array(\PDO::MYSQL_ATTR_INIT_COMMAND => "set names utf8,sql_mode=''",\PDO::ATTR_PERSISTENT => true));
+            //$pdo = new \PDO($dsn,$this->dbConfig["user"],$this->dbConfig["pw"],array(\PDO::MYSQL_ATTR_INIT_COMMAND => "set names utf8,sql_mode=''",\PDO::ATTR_PERSISTENT => true));
+            $pdo = new \PDO($dsn,$this->dbConfig["user"],$this->dbConfig["pw"],array(\PDO::MYSQL_ATTR_INIT_COMMAND => "set names utf8,sql_mode=''"));
         } catch (\PDOException $e) {
-
+            $pod = null;
             throw new \PDOException("数据库连接错误:".$e->getMessage());
 
         }
@@ -281,6 +282,62 @@ class DB {
         }
 
         return $result;
+    }
+
+    /**
+     * 获取key对应数组
+     * @param string $key
+     * @param array $field
+     * @return array
+     */
+    public function column($key="",$field=[])
+    {
+        $rdata = [];
+        $allfield = array_merge($field,(array)$key);
+        $data = $this->select($allfield);
+        if (empty($field)) {
+
+            foreach ($data as $item) {
+                $rdata[] = $item[$key];
+            }
+
+        }else{
+            foreach ($data as $item) {
+                $rdata[$item[$key]] = call_user_func_array(array($this,'columnKey'),array($item,$field));
+            }
+        }
+
+        return $rdata;
+    }
+
+    /**
+     * 处理查询的key
+     * @param $item
+     * @param $field
+     * @return array
+     */
+    private function columnKey($item,$field)
+    {
+        $values = [];
+        foreach ($field as $fv) {
+            $values[$fv] = $item[$fv];
+        }
+
+        return $values;
+    }
+
+    /**
+     * 获取单个字段的值
+     * @param string $field
+     * @return array
+     */
+    public function value($field="")
+    {
+        $data = $this->find($field);
+        if(!empty($data)) {
+            return $data[$field];
+        }
+        return [];
     }
 
     /**
@@ -414,7 +471,6 @@ class DB {
                             $bindField = implode(",",array_keys($bindVals));
                         }
                         $where .= "$field IN ($bindField) AND ";
-
                         break;
 
                     case "not in" :
@@ -504,8 +560,8 @@ class DB {
             unset($this->bindVals["insert_field"]);
         }
 
-        $this->realTable = "";
-        $this->order     = "";
+//        $this->realTable = "";
+//        $this->order     = "";
         return $this->stmt;
     }
     /**
