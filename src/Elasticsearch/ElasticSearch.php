@@ -1,8 +1,8 @@
 <?php
-namespace Ptools\Elasticsearch;
+namespace App\Lib\Es;
 use Elasticsearch\ClientBuilder;
 
-class ElasticSearch {
+class Es {
 
     /**
     'host' => '172.16.16.108',
@@ -25,6 +25,11 @@ class ElasticSearch {
     {
         $this->hosts['host'] = env('ES_HOST');
         $this->hosts['port'] = env('ES_PORT');
+        if ( in_array(env('APP_ENV'), ['pre', 'prod']) ) {
+            $this->hosts['user'] = env('ES_USER');
+            $this->hosts['pass'] = env('ES_PASS');
+            $this->hosts = [ $this->hosts ];
+        }
         $clientBuilder = ClientBuilder::create()->setHosts($this->hosts)->build();
 
         $this->Client = $clientBuilder;
@@ -65,10 +70,8 @@ class ElasticSearch {
     }
     /**
      * 创建一个索引(index\setting\mapping)
-     * @param string $index
      * @param array $settings
      * @param array $maps
-     * @param null|string $type
      * @return array|bool
      * @throws \Exception
      */
@@ -96,7 +99,7 @@ class ElasticSearch {
         try {
             $ret = $this->Client->indices()->create($params);
         } catch (\Exception $e) {
-           throw new \Exception($e->getMessage());
+            throw new \Exception($e->getMessage());
         }
         return $ret;
 
@@ -160,7 +163,7 @@ class ElasticSearch {
         try {
             return $this->Client->indices()->getMapping($params);
         } catch (\Exception $e) {
-           throw new \Exception($e->getMessage());
+            throw new \Exception($e->getMessage());
         }
     }
 
@@ -314,7 +317,11 @@ class ElasticSearch {
         foreach($where as $key=>$item){
             if(false!==strpos($key,"filter")) {
                 foreach ($item as $field=>$val) {
-                    $bool[$key][] = ['term' => [$field => $val]];
+                    if (is_array($val)) {
+                        $bool[$key][] = ['terms' => [$field => $val]];
+                    } else {
+                        $bool[$key][] = ['term' => [$field => $val]];
+                    }
                 }
             }else if(in_array($key,['must','should','must_not'])) {
                 foreach ($item as $field=>$val) {
@@ -359,7 +366,7 @@ class ElasticSearch {
                     'size'  => 2147483647,
                 ],
                 'aggs' => [
-                    'group_tag_name' => [
+                    "group_$subagg" => [
                         'terms' => ['field' => $subagg]
                     ],
                 ]
@@ -372,14 +379,17 @@ class ElasticSearch {
     /**
      * 搜索文档
      * @return array
+     * @throws \Exception
      */
     public function search()
     {
         $body["body"] = $this->query;
         $params = array_merge($this->indexType,$body);
         //var_dump($params);exit;
-        return $this->Client->search($params);
+        try {
+            return $this->Client->search($params);
+        } catch (\Exception $e) {
+            throw new \Exception($e->getMessage());
+        }
     }
-
-
 }

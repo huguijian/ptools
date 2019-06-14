@@ -555,7 +555,7 @@ class DB {
         if (isset($this->bindVals["insert_field"])) {
             foreach ($this->bindVals["insert_field"] as $key=>$val) {
 
-                $this->stmt->bindValue($key,$val,self::getBindValType($val));
+                $this->stmt->bindValue($key,$val);
             }
             unset($this->bindVals["insert_field"]);
         }
@@ -579,7 +579,7 @@ class DB {
                     if (\PDO::PARAM_STR == self::getBindValType($val)) {
                         $value = $this->pdo->quote($val);
                     } elseif (\PDO::PARAM_INT == self::getBindValType($val)) {
-                        $value = (float) $val;
+                        $value = (string) $val;
                     }
                     // 判断占位符
                     $sql = str_replace(
@@ -612,6 +612,8 @@ class DB {
         } else if(is_null($val)) {
             $valType = \PDO::PARAM_NULL;
 
+        }else{
+            $valType = \PDO::PARAM_STR;
         }
 
         return $valType;
